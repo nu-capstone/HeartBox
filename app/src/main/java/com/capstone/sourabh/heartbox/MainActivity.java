@@ -39,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
         plot.setDomainBoundaries(0, 2000, BoundaryMode.FIXED);
         plot.setLinesPerRangeLabel(3);
 
+
         // Start collecting data from dataModel
         dataModel.start(new WeakReference<>(plot.getRenderer(AdvancedLineAndPointRenderer.class)));
 

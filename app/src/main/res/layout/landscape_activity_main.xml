@@ -5,17 +5,23 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    tools:context="com.capstone.sourabh.heartbox.MainActivity">
+    tools:context="com.capstone.sourabh.heartbox.MainActivity"
+    tools:layout_editor_absoluteY="73dp">
 
-    <com.androidplot.xy.XYPlot
+    <com.androidplot.xy.XYPlot xmlns:ap="http://schemas.android.com/apk/res-auto"
         android:id="@+id/plot"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_weight="1"
+        android:orientation="horizontal"
         android:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        ap:backgroundColor="@color/off_white"
+        ap:layout_constraintBottom_toBottomOf="parent"
+        ap:layout_constraintEnd_toEndOf="parent"
+        ap:layout_constraintStart_toStartOf="parent"
+        ap:layout_constraintTop_toTopOf="parent"
+        ap:renderMode="use_background_thread"
+        ap:titleTextColor="@color/ap_black" />
+
 
 </android.support.constraint.ConstraintLayout>
