@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.landscape_activity_main);
 
-        plot = (XYPlot) findViewById(R.id.plot); //TODO: This needs to be addressed
+        plot = (XYPlot) findViewById(R.id.plot);
         DataModel dataModel = new DataModel(2000, 60);
         FadeFormatter formatter = new FadeFormatter(2000);
 
