@@ -1,5 +1,13 @@
 package com.capstone.sourabh.heartbox;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
+import android.bluetooth.BluetoothSocket;
+
+
+import android.content.Intent;
+import android.content.Context;
 import android.provider.ContactsContract;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -14,10 +22,16 @@ import com.androidplot.xy.XYSeries;
 
 import android.graphics.Paint;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.Number;
 import java.lang.Thread;
 import java.lang.Math;
 import java.lang.ref.WeakReference;
+import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 // Debug
 import android.view.Gravity;
@@ -27,25 +41,66 @@ public class MainActivity extends AppCompatActivity {
     private int buf_size = 500;
     private XYPlot plot;
     private Redrawer redrawer;
-    private BluetoothSerial bluetoothserial;
-    private String devicePrefix = "DESKTOP-9IM8JIS";
+    private BluetoothAdapter btAdapter;
+    private BluetoothDevice btDevice;
+    private BluetoothServerSocket btServerSocket;
+    private InputStream btInputStream;
+    private BluetoothSocket btSocket;
+    private SerialReader serialReader;
+    private boolean connected = false;
+    private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00815F9B34FB");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Start bluetooth connection
-        bluetoothserial = new BluetoothSerial(this, new BluetoothSerial.MessageHandler() {
-            @Override
-            public int read(int bufferSize, byte[] buffer) {
-                return 0;
-            }
-        }, devicePrefix);
         setContentView(R.layout.landscape_activity_main);
+        Context tmp = getApplicationContext();
+        Toast.makeText(getApplicationContext(), "App opened", Toast.LENGTH_SHORT).show();
+        btAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (btAdapter == null) {
+            Log.i("Bluetooth", "Device does not support bluetooth");
+            Toast.makeText(tmp, "Device doesn't have bt", Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(tmp, "Bluetooth adapter found", Toast.LENGTH_LONG).show();
+        }
+        int REQUEST_ENABLE_BT = 22;
+        if (!btAdapter.isEnabled()) {
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        }
+        // Query paired devices
+        Set<BluetoothDevice> pairedDevices = btAdapter.getBondedDevices();
+        if (pairedDevices.size() == 0) {
+            Log.i("Bluetooth", "Could not find any connected devices");
+            Toast.makeText(tmp, "No bluetooth device connected", Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(getApplicationContext(), "Found device", Toast.LENGTH_LONG).show();
+        }
+        List<BluetoothDevice> pairedDevicesList = new ArrayList<BluetoothDevice>(pairedDevices);
+        btDevice = pairedDevicesList.get(0);
 
+        // Establish connection with chosen device
+        // Need to figure out the MAC and UUID situation
+        // NOTE: App will not begin plotting until a bluetooth connection is established (i.e.
+        // UI does not respond)
+        // TODO: Move to a separate thread
+        try {
+            BluetoothServerSocket btServerSocket =
+                    btAdapter.listenUsingRfcommWithServiceRecord("HeartBox", MY_UUID);
+            btSocket = btServerSocket.accept(30);
+            btInputStream = btSocket.getInputStream();
+            btServerSocket.close();
+            connected = true;
+            Toast.makeText(getApplicationContext(), "Established RFCOMM channel",
+                    Toast.LENGTH_LONG).show();
+        } catch (Exception io) {
+            // Needs something here!!!!!
+            Log.i("IO", "Could not establish RFCOMM connection");
+        }
+        Toast.makeText(tmp, "ready to plot!", Toast.LENGTH_LONG).show();
         plot = findViewById(R.id.plot);
         DataModel dataModel = new DataModel(buf_size, 60); // normally 2000
         FadeFormatter formatter = new FadeFormatter(100); // was 500
-
         formatter.setLegendIconEnabled(false);
         plot.addSeries(dataModel, formatter);
         plot.setRangeBoundaries(0, 10, BoundaryMode.FIXED);
@@ -58,9 +113,21 @@ public class MainActivity extends AppCompatActivity {
         redrawer = new Redrawer(plot, 30, true);
     }
 
-    protected void onResume(Bundle SavedInstanceState) {
-        super.onResume();
-        bluetoothserial.onResume();
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(requestCode == 22) {
+            if (resultCode == RESULT_CANCELED) {
+                Log.i("User", "Bluetooth access denied by user");
+            }
+        }
+    }
+
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            btSocket.close();
+        } catch (Exception io) {
+            Log.i("onDestroy", "Could not close socket");
+        }
     }
 
     /*
@@ -123,8 +190,7 @@ public class MainActivity extends AppCompatActivity {
                             }
                             // Read bluetooth buffer and load into rawdata array
                             try {
-                                Number datum = bluetoothserial.serialInputStream.read();
-                                rawdata[latestIndex] = datum;
+                                rawdata[latestIndex] = Math.random();
                             } catch (Exception e) {
                                 Log.i("Buffer empty", "No data found in Input Stream");
                             }
@@ -158,18 +224,108 @@ public class MainActivity extends AppCompatActivity {
         public Number getY(int index) {
             return rawdata[index];
         }
-
-        public Number getX(int index) {
-            return index;
-        }
-
+        public Number getX(int index) { return index; }
         public String getTitle() {
             return "ECG";
         }
-
         public int size() {
             return rawdata.length;
         }
+    }
+
+    public int available() throws IOException{
+        if (connected)
+            return btInputStream.available();
+
+        throw new RuntimeException("Connection lost, reconnecting now.");
+    }
+
+
+    public int read() throws IOException {
+        if (connected) {
+            return btInputStream.read();
+        }
+        throw new IOException("Connection lost, reconnecting");
+    }
+
+    public int read(byte[] buffer) throws IOException{
+        if (connected)
+            return btInputStream.read(buffer);
+
+        throw new RuntimeException("Connection lost, reconnecting now.");
+    }
+
+    public int read(byte[] buffer, int byteOffset, int byteCount) throws IOException{
+        if (connected)
+            return btInputStream.read(buffer, byteOffset, byteCount);
+
+        throw new RuntimeException("Connection lost, reconnecting now.");
+    }
+
+
+
+    // Thread class that manages the input stream, inspired by github/jpetrocik/bluetoothserial
+    private class SerialReader extends Thread {
+        private static final int MAX_BYTES = 125;
+        byte[] buffer = new byte[MAX_BYTES];
+        int bufferSize = 0;
+
+        public void run() {
+            Log.i("SerialReader", "Beginning SerialReader instance");
+            while(!isInterrupted()) {
+                try {
+                    if (available() > 0) {
+                        int newBytes = read(buffer, bufferSize, MAX_BYTES - bufferSize);
+                        if(newBytes > 0) {
+                            bufferSize += newBytes;
+                        }
+                        Log.d("Bluetooth", "read " + newBytes);
+                    }
+                    if (bufferSize > 0) {
+                        // Implement message handler here
+                        int read_bytes = 0;
+                        // shift unread data to start of buffer
+                        if (read_bytes > 0) {
+                            int index = 0;
+                            for (int i = read_bytes; i < bufferSize; i++) {
+                                buffer[index++] = buffer[i];
+                            }
+                            bufferSize = index;
+                        }
+                    } else {
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException ie) {
+                            break;
+                        }
+                    }
+                } catch (Exception io) {
+                    Log.e("Bluetooth", "Error reading serial data", io);
+                }
+            }
+        }
+    }
+
+    // This will return number of bytes read to "int read_bytes = ..."
+    public static interface MessageHandler {
+        public int read(int bufferSize, byte[] buffer);
+    }
+
+    public void close() {
+        connected = false;
+        if (btInputStream != null)
+            serialReader.interrupt();
+        try {
+            serialReader.join(1000);
+        } catch(InterruptedException ie) {}
+        try {
+            btInputStream.close();
+        } catch (Exception e) {
+            Log.e("Bluetooth", "Failed releasing inputstream connection");
+        }
+        Log.i("Bluetooth", "Released bluetooth connections");
+
+
     }
 
 }
