@@ -55,13 +55,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.landscape_activity_main);
         Context tmp = getApplicationContext();
-        Toast.makeText(getApplicationContext(), "App opened", Toast.LENGTH_SHORT).show();
         btAdapter = BluetoothAdapter.getDefaultAdapter();
         if (btAdapter == null) {
             Log.i("Bluetooth", "Device does not support bluetooth");
-            Toast.makeText(tmp, "Device doesn't have bt", Toast.LENGTH_LONG).show();
+            Toast.makeText(tmp, "Device doesn't have bt", Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(tmp, "Bluetooth adapter found", Toast.LENGTH_LONG).show();
+            Toast.makeText(tmp, "Bluetooth adapter found", Toast.LENGTH_SHORT).show();
         }
         int REQUEST_ENABLE_BT = 22;
         if (!btAdapter.isEnabled()) {
@@ -72,9 +71,9 @@ public class MainActivity extends AppCompatActivity {
         Set<BluetoothDevice> pairedDevices = btAdapter.getBondedDevices();
         if (pairedDevices.size() == 0) {
             Log.i("Bluetooth", "Could not find any connected devices");
-            Toast.makeText(tmp, "No bluetooth device connected", Toast.LENGTH_LONG).show();
+            Toast.makeText(tmp, "No bluetooth device connected", Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(getApplicationContext(), "Found device", Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "Found device", Toast.LENGTH_SHORT).show();
         }
         List<BluetoothDevice> pairedDevicesList = new ArrayList<BluetoothDevice>(pairedDevices);
         btDevice = pairedDevicesList.get(0);
@@ -84,10 +83,16 @@ public class MainActivity extends AppCompatActivity {
         // NOTE: App will not begin plotting until a bluetooth connection is established (i.e.
         // UI does not respond)
         // TODO: Move to a separate thread
+        BluetoothServerSocket tempServerSocket = null;
         try {
-            BluetoothServerSocket btServerSocket =
+            tempServerSocket =
                     btAdapter.listenUsingRfcommWithServiceRecord("HeartBox", MY_UUID);
-            btSocket = btServerSocket.accept(30);
+        } catch (Exception io) {
+            Log.i("io", "Could not listen for RFCOMM channel");
+        }
+        btServerSocket = tempServerSocket;
+        try {
+            btSocket = btServerSocket.accept();
             btInputStream = btSocket.getInputStream();
             btServerSocket.close();
             connected = true;
@@ -97,7 +102,8 @@ public class MainActivity extends AppCompatActivity {
             // Needs something here!!!!!
             Log.i("IO", "Could not establish RFCOMM connection");
         }
-        Toast.makeText(tmp, "ready to plot!", Toast.LENGTH_LONG).show();
+        serialReader = new SerialReader();
+        serialReader.start();
         plot = findViewById(R.id.plot);
         DataModel dataModel = new DataModel(buf_size, 60); // normally 2000
         FadeFormatter formatter = new FadeFormatter(100); // was 500
@@ -124,6 +130,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         try {
+            serialReader.join(1000);
             btSocket.close();
         } catch (Exception io) {
             Log.i("onDestroy", "Could not close socket");
@@ -268,29 +275,32 @@ public class MainActivity extends AppCompatActivity {
     private class SerialReader extends Thread {
         private static final int MAX_BYTES = 125;
         byte[] buffer = new byte[MAX_BYTES];
-        int bufferSize = 0;
+        int buf_index = 0;
 
+        @Override
         public void run() {
+            byte[] tmp_buffer = new byte[5];
             Log.i("SerialReader", "Beginning SerialReader instance");
             while(!isInterrupted()) {
                 try {
                     if (available() > 0) {
-                        int newBytes = read(buffer, bufferSize, MAX_BYTES - bufferSize);
+                        int newBytes = read(tmp_buffer, 0, 1);
                         if(newBytes > 0) {
-                            bufferSize += newBytes;
+                            buf_index += newBytes;
+                            Log.i("data", Integer.toString(tmp_buffer[0]));
                         }
                         Log.d("Bluetooth", "read " + newBytes);
                     }
-                    if (bufferSize > 0) {
+                    if (buf_index > 0) {
                         // Implement message handler here
-                        int read_bytes = 0;
+                        int read_bytes = 1;
                         // shift unread data to start of buffer
                         if (read_bytes > 0) {
                             int index = 0;
-                            for (int i = read_bytes; i < bufferSize; i++) {
+                            for (int i = read_bytes; i < buf_index; i++) {
                                 buffer[index++] = buffer[i];
                             }
-                            bufferSize = index;
+                            buf_index += index;
                         }
                     } else {
                         try {
