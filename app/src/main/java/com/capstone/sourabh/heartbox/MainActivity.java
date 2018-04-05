@@ -5,7 +5,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 
-
 import android.content.Intent;
 import android.content.Context;
 import android.provider.ContactsContract;
@@ -32,9 +31,9 @@ import java.util.Set;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 // Debug
-import android.view.Gravity;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
@@ -49,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private SerialReader serialReader;
     private boolean connected = false;
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00815F9B34FB");
+    private ConcurrentLinkedQueue<Message> btRawData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -197,7 +197,12 @@ public class MainActivity extends AppCompatActivity {
                             }
                             // Read bluetooth buffer and load into rawdata array
                             try {
-                                rawdata[latestIndex] = Math.random();
+                                Message next_message = btRawData.poll();
+                                if(next_message.get_type() == MessageType.ECG) {
+                                    rawdata[latestIndex] = next_message.get_value();
+                                } else {
+                                    continue; 
+                                }
                             } catch (Exception e) {
                                 Log.i("Buffer empty", "No data found in Input Stream");
                             }
@@ -216,10 +221,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
-        }
-
-        private void setRawData(Number data) {
-            rawdata[latestIndex] = data;
         }
 
         private void start(final WeakReference<AdvancedLineAndPointRenderer> renderRef) {
@@ -293,15 +294,18 @@ public class MainActivity extends AppCompatActivity {
                     }
                     if (buf_index > 0) {
                         // Implement message handler here
-                        int read_bytes = 1;
+                        Message next_message = new Message(buffer);
                         // shift unread data to start of buffer
-                        if (read_bytes > 0) {
+                        int read_idx = next_message.get_end();
+                        if (read_idx > 0) {
                             int index = 0;
-                            for (int i = read_bytes; i < buf_index; i++) {
+                            for (int i = read_idx; i < buf_index; i++) {
                                 buffer[index++] = buffer[i];
                             }
                             buf_index += index;
                         }
+                        // Push next_message onto shared queue
+                        btRawData.add(next_message);
                     } else {
                         try {
                             Thread.sleep(10);
@@ -314,11 +318,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-    }
-
-    // This will return number of bytes read to "int read_bytes = ..."
-    public static interface MessageHandler {
-        public int read(int bufferSize, byte[] buffer);
     }
 
     public void close() {
