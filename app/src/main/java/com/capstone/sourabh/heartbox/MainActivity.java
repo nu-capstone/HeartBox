@@ -34,6 +34,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 // Debug
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
@@ -169,11 +170,14 @@ public class MainActivity extends AppCompatActivity {
     plottable. This class extends the XYSeries class
      */
     public class DataModel implements XYSeries {
-        private final Number[] rawdata;
+        private final Number[] ecgdata;
         private int latestIndex;
         private final Thread thread;
         private long delayMs;
         private boolean keepRunning;
+        private float SPO2 = 0;
+        private float BP = 0;
+        private TextView textView = (TextView) findViewById(R.id.SPO2BP);
 
         private WeakReference<AdvancedLineAndPointRenderer> renderRef;
         /**
@@ -183,25 +187,31 @@ public class MainActivity extends AppCompatActivity {
         private DataModel(int size, int updateFreq) {
             latestIndex = 0;
             delayMs = 1000 / updateFreq;
-            rawdata = new Number[size];
-            for(int i = 0; i < rawdata.length; i++) {
-                rawdata[i] = 0;
+            ecgdata = new Number[size];
+            for(int i = 0; i < ecgdata.length; i++) {
+                ecgdata[i] = 0;
             }
             thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         while (keepRunning) {
-                            if (latestIndex >= rawdata.length) {
+                            if (latestIndex >= ecgdata.length) {
                                 latestIndex = 0;
                             }
                             // Read bluetooth buffer and load into rawdata array
                             try {
                                 Message next_message = btRawData.poll();
                                 if(next_message.get_type() == MessageType.ECG) {
-                                    rawdata[latestIndex] = next_message.get_value();
+                                    ecgdata[latestIndex] = next_message.get_value();
                                 } else {
-                                    continue; 
+                                    if (next_message.get_type() == MessageType.SPO2) {
+                                        textView.setText(get_spo2bp_message(
+                                                next_message.get_value(), "SPO2"));
+                                    } else {
+                                        textView.setText(get_spo2bp_message(
+                                                next_message.get_value(), "BP"));
+                                    }
                                 }
                             } catch (Exception e) {
                                 Log.i("Buffer empty", "No data found in Input Stream");
@@ -223,6 +233,14 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        private String get_spo2bp_message(float new_val, String new_type) {
+            if (new_type.equals("SPO2")) {
+                return "SPO2 " + Float.toString(new_val) + " BP " + Float.toString(BP);
+            } else {
+                return "SPO2 " + Float.toString(SPO2) + " BP " + Float.toString(new_val);
+            }
+        }
+
         private void start(final WeakReference<AdvancedLineAndPointRenderer> renderRef) {
             this.renderRef = renderRef;
             keepRunning = true;
@@ -230,14 +248,14 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public Number getY(int index) {
-            return rawdata[index];
+            return ecgdata[index];
         }
         public Number getX(int index) { return index; }
         public String getTitle() {
             return "ECG";
         }
         public int size() {
-            return rawdata.length;
+            return ecgdata.length;
         }
     }
 
