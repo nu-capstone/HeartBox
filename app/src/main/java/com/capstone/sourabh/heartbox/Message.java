@@ -9,7 +9,7 @@ import java.util.Arrays;
  */
 
 enum MessageType {
-    ECG, SP02, BP, MISC
+    ECG, SPO2, BP, MISC
 };
 
 public class Message {
