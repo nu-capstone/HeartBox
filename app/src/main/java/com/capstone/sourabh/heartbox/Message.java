@@ -13,8 +13,6 @@ enum MessageType {
 };
 
 public class Message {
-    int START_BYTE = 49;
-    int END_BYTE = 50;
     int start, end = -3;
     float value;
     MessageType _type;
@@ -25,20 +23,20 @@ public class Message {
     }
 
     Message(byte [] buff) {
-        int idx = -2;
-        for (int ii = 0; ii < buff.length; ii++) {
-            if(buff[ii] == START_BYTE) {
-                start = ii;
-                end = ii + 4;
-                idx = ii;
-            }
+        byte [] float_bytes = Arrays.copyOfRange(buff, 1, 4);
+        value = ByteBuffer.wrap(float_bytes).order(ByteOrder.BIG_ENDIAN).getFloat();
+        if(buff[0] == 1) {
+            _type = MessageType.ECG;
+        } else if(buff[0] == 2) {
+            _type = MessageType.SPO2;
+        } else if(buff[0] == 3) {
+            _type = MessageType.BP;
         }
-        process_buffer(buff, idx + 1);
     }
 
     private void process_buffer(byte [] buff, int index) {
         byte [] float_bytes = Arrays.copyOfRange(buff, index + 1, index + 4);
-        value = ByteBuffer.wrap(float_bytes).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+        value = ByteBuffer.wrap(float_bytes).order(ByteOrder.BIG_ENDIAN).getFloat();
     }
 
     public float get_value() {

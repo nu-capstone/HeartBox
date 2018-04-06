@@ -49,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
     private SerialReader serialReader;
     private boolean connected = false;
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00815F9B34FB");
-    private ConcurrentLinkedQueue<Message> btRawData;
+    private ConcurrentLinkedQueue<byte[]> btRawData = new ConcurrentLinkedQueue<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -201,14 +201,14 @@ public class MainActivity extends AppCompatActivity {
                             }
                             // Read bluetooth buffer and load into rawdata array
                             try {
-                                Message next_message = btRawData.poll();
+                                Message next_message = new Message(btRawData.poll());
                                 if(next_message.get_type() == MessageType.ECG) {
                                     ecgdata[latestIndex] = next_message.get_value();
                                 } else {
                                     if (next_message.get_type() == MessageType.SPO2) {
                                         textView.setText(get_spo2bp_message(
                                                 next_message.get_value(), "SPO2"));
-                                    } else {
+                                    } else if (next_message.get_type() == MessageType.BP) {
                                         textView.setText(get_spo2bp_message(
                                                 next_message.get_value(), "BP"));
                                     }
@@ -292,48 +292,27 @@ public class MainActivity extends AppCompatActivity {
 
     // Thread class that manages the input stream, inspired by github/jpetrocik/bluetoothserial
     private class SerialReader extends Thread {
+        int MESSAGE_SIZE = 6;
         private static final int MAX_BYTES = 125;
         byte[] buffer = new byte[MAX_BYTES];
         int buf_index = 0;
 
         @Override
         public void run() {
-            byte[] tmp_buffer = new byte[5];
+            byte[] tmp_buffer = new byte[MESSAGE_SIZE];
             Log.i("SerialReader", "Beginning SerialReader instance");
-            while(!isInterrupted()) {
+            while (!isInterrupted()) {
                 try {
-                    if (available() > 0) {
-                        int newBytes = read(tmp_buffer, 0, 1);
-                        if(newBytes > 0) {
+                    if (available() >= MESSAGE_SIZE) {
+                        int newBytes = read(tmp_buffer, 0, MESSAGE_SIZE);
+                        if (newBytes > 0) {
                             buf_index += newBytes;
                             Log.i("data", Integer.toString(tmp_buffer[0]));
                         }
                         Log.d("Bluetooth", "read " + newBytes);
+                        btRawData.add(tmp_buffer);
                     }
-                    if (buf_index > 0) {
-                        // Implement message handler here
-                        Message next_message = new Message(buffer);
-                        // shift unread data to start of buffer
-                        int read_idx = next_message.get_end();
-                        if (read_idx > 0) {
-                            int index = 0;
-                            for (int i = read_idx; i < buf_index; i++) {
-                                buffer[index++] = buffer[i];
-                            }
-                            buf_index += index;
-                        }
-                        // Push next_message onto shared queue
-                        btRawData.add(next_message);
-                    } else {
-                        try {
-                            Thread.sleep(10);
-                        } catch (InterruptedException ie) {
-                            break;
-                        }
-                    }
-                } catch (Exception io) {
-                    Log.e("Bluetooth", "Error reading serial data", io);
-                }
+                } catch(Exception io) {}
             }
         }
     }
@@ -351,8 +330,6 @@ public class MainActivity extends AppCompatActivity {
             Log.e("Bluetooth", "Failed releasing inputstream connection");
         }
         Log.i("Bluetooth", "Released bluetooth connections");
-
-
     }
 
 }
