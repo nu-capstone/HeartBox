@@ -11,17 +11,41 @@
     <com.androidplot.xy.XYPlot xmlns:ap="http://schemas.android.com/apk/res-auto"
         android:id="@+id/plot"
         android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_weight=".9"
         android:orientation="horizontal"
         android:visibility="visible"
         ap:backgroundColor="@color/off_white"
         ap:layout_constraintBottom_toBottomOf="parent"
         ap:layout_constraintEnd_toEndOf="parent"
+        ap:layout_constraintHorizontal_bias="0.0"
+        ap:layout_constraintLeft_toLeftOf="parent"
+        ap:layout_constraintRight_toRightOf="parent"
         ap:layout_constraintStart_toStartOf="parent"
         ap:layout_constraintTop_toTopOf="parent"
+        ap:layout_constraintVertical_bias="0.0"
         ap:renderMode="use_background_thread"
         ap:titleTextColor="@color/ap_black" />
+
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:orientation="horizontal"
+        android:layout_weight=".1"
+        android:background="@color/off_white">
+
+        <EditText
+            android:id="@+id/SPO2BP"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ems="10"
+            android:inputType="textPersonName"
+            android:textAppearance="@style/TextAppearance.AppCompat.Display1"
+            android:visibility="visible"
+            tools:text="Hello" />
+    </LinearLayout>
+
 
 
 </android.support.constraint.ConstraintLayout>
