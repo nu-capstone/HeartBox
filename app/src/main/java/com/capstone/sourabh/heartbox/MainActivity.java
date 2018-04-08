@@ -186,14 +186,14 @@ public class MainActivity extends AppCompatActivity {
          *
          * @param size Sample size contained within this model
          */
-        private DataModel(int size, int updateFreq) {
+        private DataModel(final int size, int updateFreq) {
             latestIndex = 0;
             delayMs = 1000 / updateFreq;
             ecgdata = new Number[size];
             for(int i = 0; i < ecgdata.length; i++) {
                 ecgdata[i] = 0;
             }
-            textView.setText("hello");
+            textView.setText("Welcome to HeartBox");
             thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -212,14 +212,17 @@ public class MainActivity extends AppCompatActivity {
                                 } else {
                                     Log.i("DataModel", "Setting text");
                                     if (next_message.get_type() == MessageType.SPO2) {
-                                        textView.setText(get_spo2bp_message(
-                                                next_message.get_value(), "SPO2"));
+                                        SPO2 = next_message.get_value();
+                                        textView.setText(get_spo2bp_message(SPO2, "SPO2"));
                                     } else if (next_message.get_type() == MessageType.BP) {
-                                        textView.setText(get_spo2bp_message(
-                                                next_message.get_value(), "BP"));
+                                        BP = next_message.get_value();
+                                        textView.setText(get_spo2bp_message(BP, "BP"));
                                     }
                                 }
-                            } catch (Exception e) {}
+                            } catch (Exception e) {
+                                Log.i("io/special", "No data in sync queue");
+                                ecgdata[latestIndex] = 0;
+                            }
 
                             if (renderRef.get() != null) {
                                 renderRef.get().setLatestIndex(latestIndex);
