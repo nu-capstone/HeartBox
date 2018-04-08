@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
             tempServerSocket =
                     btAdapter.listenUsingRfcommWithServiceRecord("HeartBox", MY_UUID);
         } catch (Exception io) {
-            Log.i("io", "Could not listen for RFCOMM channel");
+            Log.i("IO", "Could not listen for RFCOMM channel");
         }
         btServerSocket = tempServerSocket;
         try {
@@ -190,10 +190,10 @@ public class MainActivity extends AppCompatActivity {
             latestIndex = 0;
             delayMs = 1000 / updateFreq;
             ecgdata = new Number[size];
-            textView.setText("SPO2 and BP will be displayed here.");
             for(int i = 0; i < ecgdata.length; i++) {
                 ecgdata[i] = 0;
             }
+            textView.setText("hello");
             thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -210,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
                                 if(next_message.get_type() == MessageType.ECG) {
                                     ecgdata[latestIndex] = next_message.get_value();
                                 } else {
-                                    Log.i("DataModel", "Setting text"); 
+                                    Log.i("DataModel", "Setting text");
                                     if (next_message.get_type() == MessageType.SPO2) {
                                         textView.setText(get_spo2bp_message(
                                                 next_message.get_value(), "SPO2"));
