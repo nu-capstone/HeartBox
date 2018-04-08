@@ -27,8 +27,10 @@ import java.lang.Number;
 import java.lang.Thread;
 import java.lang.Math;
 import java.lang.ref.WeakReference;
+import java.nio.ByteBuffer;
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -188,6 +190,7 @@ public class MainActivity extends AppCompatActivity {
             latestIndex = 0;
             delayMs = 1000 / updateFreq;
             ecgdata = new Number[size];
+            textView.setText("SPO2 and BP will be displayed here.");
             for(int i = 0; i < ecgdata.length; i++) {
                 ecgdata[i] = 0;
             }
@@ -213,9 +216,7 @@ public class MainActivity extends AppCompatActivity {
                                                 next_message.get_value(), "BP"));
                                     }
                                 }
-                            } catch (Exception e) {
-                                Log.i("Buffer empty", "No data found in Input Stream");
-                            }
+                            } catch (Exception e) {}
 
                             if (renderRef.get() != null) {
                                 renderRef.get().setLatestIndex(latestIndex);
@@ -292,7 +293,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Thread class that manages the input stream, inspired by github/jpetrocik/bluetoothserial
     private class SerialReader extends Thread {
-        int MESSAGE_SIZE = 6;
+        int MESSAGE_SIZE = 5;
         private static final int MAX_BYTES = 125;
         byte[] buffer = new byte[MAX_BYTES];
         int buf_index = 0;
@@ -303,11 +304,11 @@ public class MainActivity extends AppCompatActivity {
             Log.i("SerialReader", "Beginning SerialReader instance");
             while (!isInterrupted()) {
                 try {
-                    if (available() >= MESSAGE_SIZE) {
+                    if (available() == MESSAGE_SIZE) {
                         int newBytes = read(tmp_buffer, 0, MESSAGE_SIZE);
                         if (newBytes > 0) {
                             buf_index += newBytes;
-                            Log.i("data", Integer.toString(tmp_buffer[0]));
+                            Log.i("data", Arrays.toString(tmp_buffer));
                         }
                         Log.d("Bluetooth", "read " + newBytes);
                         btRawData.add(tmp_buffer);

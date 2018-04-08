@@ -23,8 +23,11 @@ public class Message {
     }
 
     Message(byte [] buff) {
-        byte [] float_bytes = Arrays.copyOfRange(buff, 1, 4);
-        value = ByteBuffer.wrap(float_bytes).order(ByteOrder.BIG_ENDIAN).getFloat();
+        int asInt = (buff[1] & 0xFF)
+                | (buff[2] & 0xFF) << 8
+                | (buff[3] & 0xFF) << 16
+                | (buff[4] & 0xFF) << 24;
+        value = Float.intBitsToFloat(asInt);
         if(buff[0] == 1) {
             _type = MessageType.ECG;
         } else if(buff[0] == 2) {
