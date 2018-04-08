@@ -205,9 +205,12 @@ public class MainActivity extends AppCompatActivity {
                             // Read bluetooth buffer and load into rawdata array
                             try {
                                 Message next_message = new Message(btRawData.poll());
+                                Log.i("DataModel", "Received message " +
+                                        Float.toString(next_message.get_value()));
                                 if(next_message.get_type() == MessageType.ECG) {
                                     ecgdata[latestIndex] = next_message.get_value();
                                 } else {
+                                    Log.i("DataModel", "Setting text"); 
                                     if (next_message.get_type() == MessageType.SPO2) {
                                         textView.setText(get_spo2bp_message(
                                                 next_message.get_value(), "SPO2"));
@@ -294,7 +297,7 @@ public class MainActivity extends AppCompatActivity {
     // Thread class that manages the input stream, inspired by github/jpetrocik/bluetoothserial
     private class SerialReader extends Thread {
         int MESSAGE_SIZE = 5;
-        private static final int MAX_BYTES = 125;
+        private static final int MAX_BYTES = 125; // TODO: Is this buffer necessary?
         byte[] buffer = new byte[MAX_BYTES];
         int buf_index = 0;
 

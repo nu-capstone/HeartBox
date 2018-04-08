@@ -1,8 +1,7 @@
 package com.capstone.sourabh.heartbox;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Arrays;
+import android.util.Log;
+
 /**
  * Created by sourabh on 4/5/18.
  * Represents a message sent from the computer to the app. It is responsible for int
@@ -13,7 +12,6 @@ enum MessageType {
 };
 
 public class Message {
-    int start, end = -3;
     float value;
     MessageType _type;
 
@@ -28,18 +26,16 @@ public class Message {
                 | (buff[3] & 0xFF) << 16
                 | (buff[4] & 0xFF) << 24;
         value = Float.intBitsToFloat(asInt);
-        if(buff[0] == 1) {
+        if(buff[0] == 49 ) { //"1" == 49 in ASCII
             _type = MessageType.ECG;
-        } else if(buff[0] == 2) {
+        } else if(buff[0] == 50) {
             _type = MessageType.SPO2;
-        } else if(buff[0] == 3) {
+        } else if(buff[0] == 51) {
             _type = MessageType.BP;
+        } else {
+            _type = MessageType.MISC;
         }
-    }
-
-    private void process_buffer(byte [] buff, int index) {
-        byte [] float_bytes = Arrays.copyOfRange(buff, index + 1, index + 4);
-        value = ByteBuffer.wrap(float_bytes).order(ByteOrder.BIG_ENDIAN).getFloat();
+        Log.i("Message", "Created message");
     }
 
     public float get_value() {
@@ -48,10 +44,6 @@ public class Message {
 
     public MessageType get_type() {
         return _type;
-    }
-
-    public int get_end() {
-        return end;
     }
 
 }
